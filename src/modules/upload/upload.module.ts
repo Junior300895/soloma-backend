@@ -1,4 +1,4 @@
-import { Module, Injectable, Controller, Post, UseInterceptors, UploadedFile, UseGuards, BadRequestException } from '@nestjs/common';
+import { Module, Injectable, Controller, Post, Delete, UseInterceptors, UploadedFile, UseGuards, BadRequestException, Body } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
@@ -28,6 +28,18 @@ export class UploadService {
       stream.end(file.buffer);
     });
   }
+
+  extractPublicId(url: string): string | null {
+    // https://res.cloudinary.com/<cloud>/image/upload/v123/folder/file.ext
+    const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z]+$/i);
+    return match ? match[1] : null;
+  }
+
+  async deleteFile(url: string): Promise<void> {
+    const publicId = this.extractPublicId(url);
+    if (!publicId) throw new BadRequestException('URL Cloudinary invalide');
+    await cloudinary.uploader.destroy(publicId);
+  }
 }
 
 @ApiTags('Upload')
@@ -46,6 +58,14 @@ export class UploadController {
     if (!file.mimetype.startsWith('image/')) throw new BadRequestException('Le fichier doit être une image');
     const url = await this.uploadService.uploadFile(file);
     return { url };
+  }
+
+  @Delete()
+  @ApiOperation({ summary: 'Supprimer une image de Cloudinary' })
+  async remove(@Body('url') url: string) {
+    if (!url) throw new BadRequestException('URL requise');
+    await this.uploadService.deleteFile(url);
+    return { message: 'Image supprimée' };
   }
 }
 
