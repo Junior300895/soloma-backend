@@ -23,6 +23,12 @@ export class BlogService {
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
+  async findById(id: number) {
+    const post = await this.repo.findOne({ where: { id }, relations: ['category'] });
+    if (!post) throw new NotFoundException('Article introuvable');
+    return post;
+  }
+
   async findBySlug(slug: string) {
     const post = await this.repo.findOne({ where: { slug, status: PostStatus.PUBLISHED }, relations: ['category'] });
     if (!post) throw new NotFoundException('Article introuvable');
