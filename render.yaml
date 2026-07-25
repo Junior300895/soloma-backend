@@ -1,0 +1,62 @@
+services:
+  - type: web
+    name: soloma-backend
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: API_PREFIX
+        value: v1
+
+      # ── Base de données MySQL (externe) ──────────────────────
+      # Utiliser PlanetScale, Aiven ou Railway pour MySQL en production
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 3306
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+
+      # ── JWT ───────────────────────────────────────────────────
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+
+      # ── Mail SMTP ────────────────────────────────────────────
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: 587
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: MAIL_ADMIN
+        sync: false
+
+      # ── Cloudinary ───────────────────────────────────────────
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      # ── CORS ─────────────────────────────────────────────────
+      # Mettre l'URL Vercel du frontend après déploiement
+      - key: FRONTEND_URL
+        sync: false

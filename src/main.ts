@@ -34,18 +34,25 @@ async function bootstrap() {
   // Filtre d'exceptions global
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  // Swagger
-  const config = new DocumentBuilder()
-    .setTitle('SOLOMA SUARL API')
-    .setDescription('API REST — Manutention Portuaire & Levage Industriel')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
+  // Swagger — uniquement hors production
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('SOLOMA SUARL API')
+      .setDescription('API REST — Manutention Portuaire & Levage Industriel')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
+    console.log(`📚 Swagger disponible sur http://localhost:${port}/docs`);
+  }
+
+  // Health check léger pour Render
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
 
   const port = process.env.PORT || 3001;
-  await app.listen(port);
-  console.log(`🚀 SOLOMA API démarrée sur http://localhost:${port}/${prefix}`);
-  console.log(`📚 Swagger disponible sur http://localhost:${port}/docs`);
+  // 0.0.0.0 requis pour Render (et Docker)
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚀 SOLOMA API démarrée sur http://0.0.0.0:${port}/${prefix}`);
 }
 bootstrap();
