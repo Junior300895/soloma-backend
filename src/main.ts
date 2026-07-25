@@ -34,6 +34,12 @@ async function bootstrap() {
   // Filtre d'exceptions global
   app.useGlobalFilters(new HttpExceptionFilter());
 
+  // Health check léger pour Render
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
+
+  const port = process.env.PORT || 3001;
+
   // Swagger — uniquement hors production
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
@@ -45,12 +51,6 @@ async function bootstrap() {
     SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
     console.log(`📚 Swagger disponible sur http://localhost:${port}/docs`);
   }
-
-  // Health check léger pour Render
-  const httpAdapter = app.getHttpAdapter();
-  httpAdapter.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
-
-  const port = process.env.PORT || 3001;
   // 0.0.0.0 requis pour Render (et Docker)
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 SOLOMA API démarrée sur http://0.0.0.0:${port}/${prefix}`);
