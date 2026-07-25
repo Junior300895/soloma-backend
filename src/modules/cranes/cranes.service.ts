@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Crane } from './crane.entity';
 import { CreateCraneDto, UpdateCraneDto, CraneFilterDto } from './crane.dto';
+import { UploadService } from '@/modules/upload/upload.module';
 
 @Injectable()
 export class CranesService {
   constructor(
     @InjectRepository(Crane)
     private readonly repo: Repository<Crane>,
+    private readonly uploadService: UploadService,
   ) {}
 
   async findAll(filters: CraneFilterDto) {
@@ -51,7 +53,10 @@ export class CranesService {
   }
 
   async remove(id: number) {
-    await this.findOne(id);
+    const crane = await this.findOne(id);
+    if (crane.imageUrl) {
+      await this.uploadService.deleteFile(crane.imageUrl).catch(() => null);
+    }
     await this.repo.delete(id);
     return { message: `Grue #${id} supprimée` };
   }

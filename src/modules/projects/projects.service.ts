@@ -4,12 +4,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Project } from './project.entity';
 import { ProjectMedia, MediaType } from './project.entity';
+import { UploadService } from '@/modules/upload/upload.module';
 
 @Injectable()
 export class ProjectsService {
   constructor(
     @InjectRepository(Project) private readonly repo: Repository<Project>,
     @InjectRepository(ProjectMedia) private readonly mediaRepo: Repository<ProjectMedia>,
+    private readonly uploadService: UploadService,
   ) {}
 
   async findAll(page = 1, limit = 12) {
@@ -39,7 +41,13 @@ export class ProjectsService {
   }
 
   async remove(id: number) {
-    await this.findOne(id);
+    const project = await this.findOne(id);
+    // Supprimer coverImage + tous les médias photo de Cloudinary
+    const urls = [
+      project.coverImage,
+      ...project.media.filter(m => m.type === MediaType.PHOTO).map(m => m.url),
+    ].filter(Boolean);
+    await Promise.all(urls.map(url => this.uploadService.deleteFile(url).catch(() => null)));
     await this.repo.delete(id);
     return { message: `Projet #${id} supprimé` };
   }
@@ -50,6 +58,10 @@ export class ProjectsService {
   }
 
   async removeMedia(projectId: number, mediaId: number) {
+    const media = await this.mediaRepo.findOne({ where: { id: mediaId, projectId } });
+    if (media?.url && media.type === MediaType.PHOTO) {
+      await this.uploadService.deleteFile(media.url).catch(() => null);
+    }
     await this.mediaRepo.delete({ id: mediaId, projectId });
     return { message: 'Média supprimé' };
   }

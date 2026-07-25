@@ -1,7 +1,8 @@
 // blog.controller.ts
-import { Controller, Get, Post, Patch, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { BlogService } from './blog.service';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 
 @ApiTags('Blog')
 @Controller('posts')
@@ -13,4 +14,6 @@ export class BlogController {
   @Post() create(@Body() dto: any) { return this.service.create(dto); }
   @Patch(':id') update(@Param('id', ParseIntPipe) id: number, @Body() dto: any) { return this.service.update(id, dto); }
   @Patch(':id/publish') publish(@Param('id', ParseIntPipe) id: number) { return this.service.publish(id); }
+  @Delete(':id') @UseGuards(JwtAuthGuard) @ApiBearerAuth() @ApiOperation({ summary: 'Supprimer un article' })
+  remove(@Param('id', ParseIntPipe) id: number) { return this.service.remove(id); }
 }

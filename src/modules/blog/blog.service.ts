@@ -3,12 +3,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Post, PostStatus, PostCategory } from './post.entity';
+import { UploadService } from '@/modules/upload/upload.module';
 
 @Injectable()
 export class BlogService {
   constructor(
     @InjectRepository(Post) private readonly repo: Repository<Post>,
     @InjectRepository(PostCategory) private readonly catRepo: Repository<PostCategory>,
+    private readonly uploadService: UploadService,
   ) {}
 
   async findAll(page = 1, limit = 9, categoryId?: number) {
@@ -41,5 +43,15 @@ export class BlogService {
   async publish(id: number) {
     await this.repo.update(id, { status: PostStatus.PUBLISHED, publishedAt: new Date() });
     return this.repo.findOne({ where: { id } });
+  }
+
+  async remove(id: number) {
+    const post = await this.repo.findOne({ where: { id } });
+    if (!post) throw new NotFoundException('Article introuvable');
+    if (post.coverImage) {
+      await this.uploadService.deleteFile(post.coverImage).catch(() => null);
+    }
+    await this.repo.delete(id);
+    return { message: `Article #${id} supprimé` };
   }
 }
