@@ -15,18 +15,20 @@ services:
       - key: API_PREFIX
         value: v1
 
-      # ── Base de données MySQL (externe) ──────────────────────
-      # Utiliser PlanetScale, Aiven ou Railway pour MySQL en production
+      # ── Base de données MySQL Aiven ───────────────────────────
+      # Valeurs disponibles dans : Aiven Console → votre service → Connection information
       - key: DB_HOST
         sync: false
       - key: DB_PORT
-        value: 3306
+        sync: false
       - key: DB_NAME
         sync: false
       - key: DB_USER
         sync: false
       - key: DB_PASSWORD
         sync: false
+      - key: DB_SSL
+        value: true
 
       # ── JWT ───────────────────────────────────────────────────
       - key: JWT_SECRET

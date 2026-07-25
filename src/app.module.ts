@@ -20,19 +20,27 @@ import { UploadModule } from './modules/upload/upload.module';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'mysql',
-        host: config.get('DB_HOST', 'localhost'),
-        port: config.get<number>('DB_PORT', 3306),
-        database: config.get('DB_NAME', 'soloma_db'),
-        username: config.get('DB_USER', 'soloma_user'),
-        password: config.get('DB_PASSWORD', ''),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        synchronize: config.get('NODE_ENV') === 'development',
-        logging: config.get('NODE_ENV') === 'development',
-        charset: 'utf8mb4',
-      }),
+      useFactory: (config: ConfigService) => {
+        const isProd = config.get('NODE_ENV') === 'production';
+        const sslEnabled = config.get('DB_SSL') === 'true';
+        return {
+          type: 'mysql',
+          host: config.get('DB_HOST', 'localhost'),
+          port: config.get<number>('DB_PORT', 3306),
+          database: config.get('DB_NAME', 'soloma_db'),
+          username: config.get('DB_USER', 'soloma_user'),
+          password: config.get('DB_PASSWORD', ''),
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
+          synchronize: !isProd,
+          logging: !isProd,
+          charset: 'utf8mb4',
+          ...(sslEnabled && {
+            ssl: { rejectUnauthorized: true },
+            extra: { ssl: { rejectUnauthorized: true } },
+          }),
+        };
+      },
     }),
 
     // Rate limiting global : 100 req / 60s par IP
