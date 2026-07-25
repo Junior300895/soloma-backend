@@ -1,0 +1,57 @@
+import { Module, Injectable, Controller, Post, UseInterceptors, UploadedFile, UseGuards, BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ConfigService } from '@nestjs/config';
+import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import * as multer from 'multer';
+
+@Injectable()
+export class UploadService {
+  constructor(private readonly config: ConfigService) {
+    cloudinary.config({
+      cloud_name: this.config.get('CLOUDINARY_CLOUD_NAME'),
+      api_key: this.config.get('CLOUDINARY_API_KEY'),
+      api_secret: this.config.get('CLOUDINARY_API_SECRET'),
+    });
+  }
+
+  async uploadFile(file: Express.Multer.File, folder = 'soloma'): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder, resource_type: 'image', transformation: [{ quality: 'auto', fetch_format: 'auto' }] },
+        (error, result: UploadApiResponse) => {
+          if (error) return reject(error);
+          resolve(result.secure_url);
+        },
+      );
+      stream.end(file.buffer);
+    });
+  }
+}
+
+@ApiTags('Upload')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('upload')
+export class UploadController {
+  constructor(private readonly uploadService: UploadService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Upload une image vers Cloudinary' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }))
+  async upload(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Aucun fichier fourni');
+    if (!file.mimetype.startsWith('image/')) throw new BadRequestException('Le fichier doit être une image');
+    const url = await this.uploadService.uploadFile(file);
+    return { url };
+  }
+}
+
+@Module({
+  providers: [UploadService],
+  controllers: [UploadController],
+  exports: [UploadService],
+})
+export class UploadModule {}

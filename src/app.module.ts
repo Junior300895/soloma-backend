@@ -11,6 +11,7 @@ import { BlogModule } from './modules/blog/blog.module';
 import { ServicesPageModule } from './modules/services-page/services-page.module';
 import { MailModule } from './modules/mail/mail.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { UploadModule } from './modules/upload/upload.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AuthModule } from './modules/auth/auth.module';
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
 
     AuthModule,
+    UploadModule,
     MailModule,
     CranesModule,
     QuotesModule,
