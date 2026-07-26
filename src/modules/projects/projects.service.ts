@@ -42,10 +42,10 @@ export class ProjectsService {
 
   async remove(id: number) {
     const project = await this.findOne(id);
-    // Supprimer coverImage + tous les médias photo de Cloudinary
+    // Supprimer coverImage + tous les médias (photos et vidéos) de Cloudinary
     const urls = [
       project.coverImage,
-      ...project.media.filter(m => m.type === MediaType.PHOTO).map(m => m.url),
+      ...project.media.map(m => m.url),
     ].filter(Boolean);
     await Promise.all(urls.map(url => this.uploadService.deleteFile(url).catch(() => null)));
     await this.repo.delete(id);
@@ -59,7 +59,7 @@ export class ProjectsService {
 
   async removeMedia(projectId: number, mediaId: number) {
     const media = await this.mediaRepo.findOne({ where: { id: mediaId, projectId } });
-    if (media?.url && media.type === MediaType.PHOTO) {
+    if (media?.url) {
       await this.uploadService.deleteFile(media.url).catch(() => null);
     }
     await this.mediaRepo.delete({ id: mediaId, projectId });

@@ -16,10 +16,18 @@ export class UploadService {
     });
   }
 
-  async uploadFile(file: Express.Multer.File, folder = 'soloma'): Promise<string> {
+  async uploadFile(
+    file: Express.Multer.File,
+    resourceType: 'image' | 'video' = 'image',
+    folder = 'soloma',
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
+      const options: Record<string, any> =
+        resourceType === 'video'
+          ? { folder, resource_type: 'video' }
+          : { folder, resource_type: 'image', transformation: [{ quality: 'auto', fetch_format: 'auto' }] };
       const stream = cloudinary.uploader.upload_stream(
-        { folder, resource_type: 'image', transformation: [{ quality: 'auto', fetch_format: 'auto' }] },
+        options,
         (error, result: UploadApiResponse) => {
           if (error) return reject(error);
           resolve(result.secure_url);
@@ -31,14 +39,19 @@ export class UploadService {
 
   extractPublicId(url: string): string | null {
     // https://res.cloudinary.com/<cloud>/image/upload/v123/folder/file.ext
-    const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z]+$/i);
+    const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z0-9]+$/i);
     return match ? match[1] : null;
   }
 
   async deleteFile(url: string): Promise<void> {
     const publicId = this.extractPublicId(url);
     if (!publicId) throw new BadRequestException('URL Cloudinary invalide');
-    await cloudinary.uploader.destroy(publicId);
+    // Détecte le type de ressource depuis l'URL (/video/upload/ vs /image/upload/)
+    const resourceType = /\/video\/upload\//i.test(url) ? 'video' : 'image';
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+    if (result.result !== 'ok' && result.result !== 'not found') {
+      throw new BadRequestException(`Échec suppression Cloudinary: ${result.result}`);
+    }
   }
 }
 
@@ -57,6 +70,17 @@ export class UploadController {
     if (!file) throw new BadRequestException('Aucun fichier fourni');
     if (!file.mimetype.startsWith('image/')) throw new BadRequestException('Le fichier doit être une image');
     const url = await this.uploadService.uploadFile(file);
+    return { url };
+  }
+
+  @Post('video')
+  @ApiOperation({ summary: 'Upload une vidéo vers Cloudinary' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } }))
+  async uploadVideo(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Aucun fichier fourni');
+    if (!file.mimetype.startsWith('video/')) throw new BadRequestException('Le fichier doit être une vidéo');
+    const url = await this.uploadService.uploadFile(file, 'video');
     return { url };
   }
 
