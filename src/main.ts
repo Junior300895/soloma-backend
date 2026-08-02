@@ -12,9 +12,14 @@ async function bootstrap() {
   // Sécurité HTTP headers
   app.use(helmet());
 
-  // CORS
+  // CORS — accepte une liste d'origines séparées par des virgules dans FRONTEND_URL
+  // ex: FRONTEND_URL=https://solomasuarl.sn,https://www.solomasuarl.sn,https://soloma-suarl.vercel.app
+  const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
