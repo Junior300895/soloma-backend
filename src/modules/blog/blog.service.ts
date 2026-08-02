@@ -13,12 +13,14 @@ export class BlogService {
     private readonly uploadService: UploadService,
   ) {}
 
-  async findAll(page = 1, limit = 9, categoryId?: number) {
+  async findAll(page = 1, limit = 9, categoryId?: number, includeAll = false) {
     const qb = this.repo.createQueryBuilder('post')
-      .leftJoinAndSelect('post.category', 'category')
-      .where('post.status = :status', { status: PostStatus.PUBLISHED });
+      .leftJoinAndSelect('post.category', 'category');
+    // Public : uniquement les publiés. Admin (all=true) : tous les statuts.
+    if (!includeAll) qb.where('post.status = :status', { status: PostStatus.PUBLISHED });
     if (categoryId) qb.andWhere('post.categoryId = :categoryId', { categoryId });
-    qb.orderBy('post.publishedAt', 'DESC');
+    // Tri par date de publication pour le public, par création pour l'admin (les brouillons n'ont pas de publishedAt)
+    qb.orderBy(includeAll ? 'post.createdAt' : 'post.publishedAt', 'DESC');
     const [data, total] = await qb.skip((page - 1) * limit).take(limit).getManyAndCount();
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
