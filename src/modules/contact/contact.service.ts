@@ -1,5 +1,5 @@
 // contact.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Contact } from './contact.entity';
@@ -8,6 +8,8 @@ import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class ContactService {
+  private readonly logger = new Logger(ContactService.name);
+
   constructor(
     @InjectRepository(Contact) private readonly repo: Repository<Contact>,
     private readonly mail: MailService,
@@ -15,7 +17,10 @@ export class ContactService {
 
   async create(dto: CreateContactDto) {
     const contact = await this.repo.save(this.repo.create(dto));
-    await this.mail.sendContactNotification(dto);
+    // Email en arrière-plan : le message est enregistré même si le SMTP échoue.
+    this.mail
+      .sendContactNotification(dto)
+      .catch((err) => this.logger.error(`Échec envoi email contact: ${err?.message || err}`));
     return contact;
   }
 

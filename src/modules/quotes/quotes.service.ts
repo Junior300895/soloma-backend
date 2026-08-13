@@ -1,5 +1,5 @@
 // quotes.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Quote, QuoteStatus } from './quote.entity';
@@ -11,6 +11,8 @@ export { Quote, QuoteStatus };
 
 @Injectable()
 export class QuotesService {
+  private readonly logger = new Logger(QuotesService.name);
+
   constructor(
     @InjectRepository(Quote) private readonly repo: Repository<Quote>,
     private readonly mail: MailService,
@@ -27,7 +29,11 @@ export class QuotesService {
     }
     const quote = this.repo.create(dto);
     const saved = await this.repo.save(quote);
-    await this.mail.sendQuoteNotification({ ...dto, craneName });
+    // Envoi de l'email en arrière-plan : ne bloque JAMAIS la réponse HTTP.
+    // Le devis est enregistré même si le SMTP échoue.
+    this.mail
+      .sendQuoteNotification({ ...dto, craneName })
+      .catch((err) => this.logger.error(`Échec envoi email devis: ${err?.message || err}`));
     return saved;
   }
 

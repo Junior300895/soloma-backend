@@ -1,21 +1,37 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
-export class MailService {
+export class MailService implements OnModuleInit {
   private readonly logger = new Logger(MailService.name);
   private transporter: nodemailer.Transporter;
 
+  /** Vérifie la config SMTP au démarrage → visible dans les logs Render */
+  async onModuleInit() {
+    try {
+      await this.transporter.verify();
+      this.logger.log('✅ SMTP prêt : connexion et authentification réussies');
+    } catch (err: any) {
+      this.logger.error(`❌ SMTP KO (les emails ne partiront pas) : ${err?.message || err}`);
+    }
+  }
+
   constructor(private config: ConfigService) {
+    const port = Number(this.config.get('MAIL_PORT', 587));
     this.transporter = nodemailer.createTransport({
       host: this.config.get('MAIL_HOST', 'smtp.gmail.com'),
-      port: this.config.get<number>('MAIL_PORT', 587),
-      secure: false,
+      port,
+      // 465 = SSL/TLS implicite (secure) ; 587 / 25 = STARTTLS (non secure)
+      secure: port === 465,
       auth: {
         user: this.config.get('MAIL_USER'),
         pass: this.config.get('MAIL_PASSWORD'),
       },
+      // Échouer vite plutôt que de bloquer la requête si le SMTP ne répond pas
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 8000,
     });
   }
 
@@ -29,10 +45,10 @@ export class MailService {
     craneName?: string;
   }) {
     const adminEmail = this.config.get('MAIL_ADMIN');
-    const from = this.config.get('MAIL_FROM', 'contact@soloma.sn');
+    const from = this.config.get('MAIL_FROM', 'contact@solomasuarl.sn');
 
-    // Email à l'admin
-    await this.transporter.sendMail({
+    // Email à l'admin (seulement si un destinataire est configuré)
+    if (adminEmail) await this.transporter.sendMail({
       from,
       to: adminEmail,
       subject: `[SOLOMA] Nouvelle demande de devis — ${quote.fullName}`,
@@ -78,7 +94,7 @@ export class MailService {
       `,
     });
 
-    this.logger.log(`Devis envoyé pour ${quote.email}`);
+    this.logger.log(`✉️ Devis : emails envoyés (admin${adminEmail ? '' : ' SKIP'} + client ${quote.email})`);
   }
 
   async sendContactNotification(contact: {
@@ -89,9 +105,9 @@ export class MailService {
     message: string;
   }) {
     const adminEmail = this.config.get('MAIL_ADMIN');
-    const from = this.config.get('MAIL_FROM', 'contact@soloma.sn');
+    const from = this.config.get('MAIL_FROM', 'contact@solomasuarl.sn');
 
-    await this.transporter.sendMail({
+    if (adminEmail) await this.transporter.sendMail({
       from,
       to: adminEmail,
       subject: `[SOLOMA] Nouveau message — ${contact.subject || contact.fullName}`,
@@ -105,6 +121,6 @@ export class MailService {
       `,
     });
 
-    this.logger.log(`Contact reçu de ${contact.email}`);
+    this.logger.log(`✉️ Contact : email admin envoyé (de ${contact.email})`);
   }
 }
